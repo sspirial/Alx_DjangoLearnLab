@@ -43,12 +43,18 @@ def librarian_for_library(library_name: str):
     except Library.DoesNotExist:
         print(f"Library '{library_name}' not found")
         return None
-    librarian = getattr(library, 'librarian', None)
-    if librarian is None:
-        print(f"No librarian assigned to {library.name}")
-    else:
+    try:
+        # Explicit query as required
+        librarian = Librarian.objects.get(library=library)
         print(f"Librarian for {library.name}: {librarian.name}")
-    return librarian
+        return librarian
+    except Librarian.DoesNotExist:
+        print(f"No librarian assigned to {library.name}")
+        return None
+    except Librarian.MultipleObjectsReturned:
+        first = Librarian.objects.filter(library=library).first()
+        print(f"Multiple librarians found for {library.name}, using: {first.name if first else 'None'}")
+        return first
 
 
 if __name__ == "__main__":

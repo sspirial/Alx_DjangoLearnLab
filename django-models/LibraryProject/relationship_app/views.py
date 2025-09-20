@@ -1,5 +1,7 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.generic.detail import DetailView
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
 
 from .models import Library
 from .models import Book
@@ -24,3 +26,23 @@ class LibraryDetailView(DetailView):
 			.get_queryset()
 			.prefetch_related("books__author")
 		)
+
+
+def register(request):
+	"""Handle user registration using Django's built-in UserCreationForm.
+
+	- GET: display the registration form
+	- POST: validate and create the user, log them in, then redirect
+	"""
+	if request.method == "POST":
+		form = UserCreationForm(request.POST)
+		if form.is_valid():
+			user = form.save()
+			# Log the user in after successful registration
+			login(request, user)
+			# Redirect to books list or home page
+			return redirect("relationship_app:list_books")
+	else:
+		form = UserCreationForm()
+
+	return render(request, "relationship_app/register.html", {"form": form})

@@ -16,8 +16,20 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-	fieldsets = UserAdmin.fieldsets + (
-		("Additional Info", {"fields": ("date_of_birth", "profile_photo")}),
+	fieldsets = (
+		(None, {"fields": ("username", "password")}),
+		("Personal info", {"fields": ("first_name", "last_name", "email", "date_of_birth", "profile_photo")}),
+		("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
+		("Important dates", {"fields": ("last_login", "date_joined")}),
 	)
-	add_fieldsets = UserAdmin.add_fieldsets
+
+	add_fieldsets = (
+		(None, {
+			"classes": ("wide",),
+			"fields": ("username", "email", "password1", "password2", "first_name", "last_name", "date_of_birth", "profile_photo", "is_staff", "is_superuser"),
+		}),
+	)
+
 	list_display = ("username", "email", "first_name", "last_name", "is_staff", "date_of_birth")
+	list_filter = ("is_staff", "is_superuser", "is_active", "groups")
+	search_fields = ("username", "first_name", "last_name", "email")

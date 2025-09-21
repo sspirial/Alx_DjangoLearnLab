@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts',
     'bookshelf',
     'relationship_app',
 ]
@@ -119,10 +118,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Media files (for uploaded images like profile photos)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
 # After successful login, redirect users here by default
 LOGIN_REDIRECT_URL = '/books/'
 LOGIN_URL = '/login/'
@@ -131,6 +126,3 @@ LOGIN_URL = '/login/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Use custom user model
-AUTH_USER_MODEL = 'accounts.CustomUser'

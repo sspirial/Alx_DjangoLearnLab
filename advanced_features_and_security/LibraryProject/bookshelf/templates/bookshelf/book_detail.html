@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head><title>{{ book.title }}</title></head>
+<body>
+  <h1>{{ book.title }}</h1>
+  <p>Author: {{ book.author }}</p>
+  <p>Year: {{ book.publication_year }}</p>
+  <p>
+    <a href="{% url 'bookshelf:book_edit' book.pk %}">Edit</a> |
+    <a href="{% url 'bookshelf:book_delete' book.pk %}">Delete</a> |
+    <a href="{% url 'bookshelf:book_list' %}">Back</a>
+  </p>
+</body>
+</html>

@@ -13,6 +13,15 @@ class Book(models.Model):
 	def __str__(self):
 		return f"{self.title} by {self.author} ({self.publication_year})"
 
+	class Meta:
+		# Custom, human-friendly permissions used across the app
+		permissions = (
+			("can_view", "Can view books"),
+			("can_create", "Can create books"),
+			("can_edit", "Can edit books"),
+			("can_delete", "Can delete books"),
+		)
+
 
 class CustomUserManager(BaseUserManager):
 	def create_user(self, username, email=None, password=None, **extra_fields):

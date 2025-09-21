@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head><title>{% if mode == 'create' %}Create Book{% else %}Edit Book{% endif %}</title></head>
+<body>
+  <h1>{% if mode == 'create' %}Create Book{% else %}Edit Book{% endif %}</h1>
+  <form method="post">
+    {% csrf_token %}
+    <label>Title: <input type="text" name="title" value="{{ book.title|default:'' }}"></label><br>
+    <label>Author: <input type="text" name="author" value="{{ book.author|default:'' }}"></label><br>
+    <label>Year: <input type="number" name="publication_year" value="{{ book.publication_year|default:'' }}"></label><br>
+    <button type="submit">Save</button>
+  </form>
+  <p><a href="{% if mode == 'create' %}{% url 'bookshelf:book_list' %}{% else %}{% url 'bookshelf:book_detail' book.pk %}{% endif %}">Cancel</a></p>
+</body>
+</html>

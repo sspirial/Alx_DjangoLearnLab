@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Book</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    form { max-width: 480px; }
+    label { display: block; margin-top: .75rem; }
+    button { margin-top: 1rem; }
+  </style>
+  </head>
+  <body>
+    <h1>{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Book</h1>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">Save</button>
+      <a href="{% url 'relationship_app:list_books' %}">Cancel</a>
+    </form>
+  </body>
+  </html>

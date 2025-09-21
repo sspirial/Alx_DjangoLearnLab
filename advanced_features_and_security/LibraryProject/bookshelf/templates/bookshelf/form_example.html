@@ -3,9 +3,17 @@
 <head><title>Form Example (CSRF)</title></head>
 <body>
   <h1>Example Form With CSRF</h1>
-  <form method="post">
+  {% if message %}
+    <p>{{ message }}</p>
+  {% endif %}
+  <form method="post" novalidate>
     {% csrf_token %}
-    <input type="text" name="sample" placeholder="Sample Input">
+    {{ form.non_field_errors }}
+    <p>
+      {{ form.sample.label_tag }}<br>
+      {{ form.sample }}
+      {{ form.sample.errors }}
+    </p>
     <button type="submit">Submit</button>
   </form>
 </body>

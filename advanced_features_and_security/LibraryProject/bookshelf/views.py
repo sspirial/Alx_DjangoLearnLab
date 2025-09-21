@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.db.models import Q
 
 from .models import Book
-from .forms import BookForm
+from .forms import BookForm, ExampleForm
 
 
 @login_required
@@ -61,3 +61,17 @@ def book_delete(request, pk: int):
 		book.delete()
 		return redirect('bookshelf:book_list')
 	return render(request, 'bookshelf/book_confirm_delete.html', {"book": book})
+
+
+@login_required
+def example_form(request):
+	message = None
+	if request.method == 'POST':
+		form = ExampleForm(request.POST)
+		if form.is_valid():
+			# Echo sanitized data back
+			message = f"You submitted: {form.cleaned_data['sample']}"
+			form = ExampleForm()  # reset
+	else:
+		form = ExampleForm()
+	return render(request, 'bookshelf/form_example.html', {"form": form, "message": message})

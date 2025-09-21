@@ -17,3 +17,8 @@ class BookForm(forms.ModelForm):
         if year is not None and (year < 0 or year > 9999):
             raise forms.ValidationError("Invalid year.")
         return year
+
+
+class ExampleForm(forms.Form):
+    sample = forms.CharField(max_length=200, required=True)
+

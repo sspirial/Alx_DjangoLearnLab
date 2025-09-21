@@ -4,7 +4,8 @@ from django.urls import reverse
 from django.db.models import Q
 
 from .models import Book
-from .forms import BookForm, ExampleForm
+from .forms import BookForm
+from .forms import ExampleForm
 
 
 @login_required

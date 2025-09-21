@@ -8,7 +8,7 @@ from django import forms
 
 from .models import Library
 from .models import Book
-from .models import UserProfile
+from bookshelf.models import UserProfile
 
 
 def list_books(request):

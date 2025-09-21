@@ -142,16 +142,35 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # -------------------------
 # Security hardening (prod)
 # -------------------------
-# These settings help protect against common web vulnerabilities. Keep them
-# enabled in production (DEBUG=False) and when serving over HTTPS.
+# These settings help protect against common web vulnerabilities. They are
+# enforced by default when DEBUG=False. You can still override them via env
+# variables for special cases (e.g., local dev behind HTTPS).
 
-# Force HTTPS in production (set DJANGO_SECURE_SSL_REDIRECT=true)
-SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+# Force HTTPS by default in production. Override with DJANGO_SECURE_SSL_REDIRECT.
+# - Default: True when DEBUG=False, else False (so local HTTP works by default).
+SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', str(not DEBUG)).lower() == 'true'
 
-# HTTP Strict Transport Security (enable only when you have HTTPS configured)
-SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '0'))  # e.g., 31536000 in prod
-SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False').lower() == 'true'
-SECURE_HSTS_PRELOAD = os.getenv('DJANGO_SECURE_HSTS_PRELOAD', 'False').lower() == 'true'
+# HTTP Strict Transport Security (HSTS)
+# - Only enable when your site is accessible via HTTPS (commonly always in prod).
+# - Default: 31536000 (1 year) when DEBUG=False, else 0 (disabled in dev).
+SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
+    'DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True' if not DEBUG else 'False'
+).lower() == 'true'
+SECURE_HSTS_PRELOAD = os.getenv('DJANGO_SECURE_HSTS_PRELOAD', 'True' if not DEBUG else 'False').lower() == 'true'
+
+# Reverse proxy SSL termination support (e.g., Nginx/Apache terminating TLS).
+# If your proxy sets X-Forwarded-Proto: https, set the header below so Django
+# considers the request secure. Configure via env as a comma-separated pair,
+# e.g. DJANGO_SECURE_PROXY_SSL_HEADER="HTTP_X_FORWARDED_PROTO,https".
+_proxy_hdr = os.getenv('DJANGO_SECURE_PROXY_SSL_HEADER', '').strip()
+if _proxy_hdr:
+    try:
+        name, value = [p.strip() for p in _proxy_hdr.split(',', 1)]
+        SECURE_PROXY_SSL_HEADER = (name, value)
+    except ValueError:
+        # Misconfiguration is ignored; Django will treat requests as-is.
+        pass
 
 # Prevent the browser from MIME-type sniffing
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -159,9 +178,9 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # Clickjacking protection
 X_FRAME_OPTIONS = 'DENY'
 
-# Use secure cookies over HTTPS
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+# Use secure cookies over HTTPS (default True in prod, can be overridden in env)
+SESSION_COOKIE_SECURE = os.getenv('DJANGO_SESSION_COOKIE_SECURE', str(not DEBUG)).lower() == 'true'
+CSRF_COOKIE_SECURE = os.getenv('DJANGO_CSRF_COOKIE_SECURE', str(not DEBUG)).lower() == 'true'
 
 # HttpOnly flags help mitigate XSS for session/CSRF cookies
 SESSION_COOKIE_HTTPONLY = True

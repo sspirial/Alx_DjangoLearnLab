@@ -1,16 +1,22 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
-from django.http import HttpResponseForbidden
 from django.urls import reverse
+from django.db.models import Q
 
 from .models import Book
+from .forms import BookForm
 
 
 @login_required
 @permission_required('bookshelf.can_view', raise_exception=True)
 def book_list(request):
-	books = Book.objects.all().order_by('title')
-	return render(request, 'bookshelf/book_list.html', {"books": books})
+	# Safe search using ORM filters to avoid SQL injection
+	q = request.GET.get('q', '').strip()
+	qs = Book.objects.all()
+	if q:
+		qs = qs.filter(Q(title__icontains=q) | Q(author__icontains=q))
+	books = qs.order_by('title')
+	return render(request, 'bookshelf/book_list.html', {"books": books, "q": q})
 
 
 @login_required
@@ -24,13 +30,13 @@ def book_detail(request, pk: int):
 @permission_required('bookshelf.can_create', raise_exception=True)
 def book_create(request):
 	if request.method == 'POST':
-		title = request.POST.get('title')
-		author = request.POST.get('author')
-		year = request.POST.get('publication_year')
-		if title and author and year:
-			Book.objects.create(title=title, author=author, publication_year=int(year))
+		form = BookForm(request.POST)
+		if form.is_valid():
+			form.save()
 			return redirect('bookshelf:book_list')
-	return render(request, 'bookshelf/book_form.html', {"mode": "create"})
+	else:
+		form = BookForm()
+	return render(request, 'bookshelf/book_form.html', {"mode": "create", "form": form})
 
 
 @login_required
@@ -38,16 +44,13 @@ def book_create(request):
 def book_edit(request, pk: int):
 	book = get_object_or_404(Book, pk=pk)
 	if request.method == 'POST':
-		title = request.POST.get('title')
-		author = request.POST.get('author')
-		year = request.POST.get('publication_year')
-		if title and author and year:
-			book.title = title
-			book.author = author
-			book.publication_year = int(year)
-			book.save()
+		form = BookForm(request.POST, instance=book)
+		if form.is_valid():
+			form.save()
 			return redirect('bookshelf:book_detail', pk=book.pk)
-	return render(request, 'bookshelf/book_form.html', {"mode": "edit", "book": book})
+	else:
+		form = BookForm(instance=book)
+	return render(request, 'bookshelf/book_form.html', {"mode": "edit", "form": form, "book": book})
 
 
 @login_required

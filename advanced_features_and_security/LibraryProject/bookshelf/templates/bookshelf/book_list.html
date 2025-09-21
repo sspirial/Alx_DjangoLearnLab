@@ -3,6 +3,10 @@
 <head><title>Books</title></head>
 <body>
   <h1>Books</h1>
+  <form method="get" action="">
+    <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search title or author">
+    <button type="submit">Search</button>
+  </form>
   <p><a href="{% url 'bookshelf:book_create' %}">Create new book</a></p>
   <ul>
     {% for b in books %}

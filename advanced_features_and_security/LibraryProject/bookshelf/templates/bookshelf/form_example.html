@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head><title>Form Example (CSRF)</title></head>
+<body>
+  <h1>Example Form With CSRF</h1>
+  <form method="post">
+    {% csrf_token %}
+    <input type="text" name="sample" placeholder="Sample Input">
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>

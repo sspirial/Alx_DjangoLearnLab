@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,9 +24,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-r^cxv)+2uyv^iv!1ay2+-9&b6ufp#@7qz3$_*=k#y475(r1e@h'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Use environment variable DJANGO_DEBUG to toggle debug (default True for local dev)
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+# In production, set DJANGO_ALLOWED_HOSTS to a comma-separated list of hosts
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()] or []
 
 
 # Application definition
@@ -43,6 +46,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Custom CSP header middleware (see bookshelf/middleware.py)
+    'bookshelf.middleware.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -133,3 +138,42 @@ AUTH_USER_MODEL = 'bookshelf.CustomUser'
 # Media files (for profile photos)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# -------------------------
+# Security hardening (prod)
+# -------------------------
+# These settings help protect against common web vulnerabilities. Keep them
+# enabled in production (DEBUG=False) and when serving over HTTPS.
+
+# Force HTTPS in production (set DJANGO_SECURE_SSL_REDIRECT=true)
+SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+
+# HTTP Strict Transport Security (enable only when you have HTTPS configured)
+SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '0'))  # e.g., 31536000 in prod
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False').lower() == 'true'
+SECURE_HSTS_PRELOAD = os.getenv('DJANGO_SECURE_HSTS_PRELOAD', 'False').lower() == 'true'
+
+# Prevent the browser from MIME-type sniffing
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Clickjacking protection
+X_FRAME_OPTIONS = 'DENY'
+
+# Use secure cookies over HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# HttpOnly flags help mitigate XSS for session/CSRF cookies
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+
+# Set a conservative Referrer-Policy
+SECURE_REFERRER_POLICY = 'same-origin'
+
+# Note: SECURE_BROWSER_XSS_FILTER has been removed in modern Django and is ignored
+# by most browsers. Prefer CSP (configured via ContentSecurityPolicyMiddleware).
+
+# Optionally set CSRF trusted origins via env (comma-separated URLs)
+_csrf_trusted = [o.strip() for o in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+if _csrf_trusted:
+    CSRF_TRUSTED_ORIGINS = _csrf_trusted

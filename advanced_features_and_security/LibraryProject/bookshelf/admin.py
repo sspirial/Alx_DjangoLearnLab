@@ -14,7 +14,6 @@ class UserProfileAdmin(admin.ModelAdmin):
 	list_filter = ("role",)
 
 
-@admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
 	fieldsets = (
 		(None, {"fields": ("username", "password")}),
@@ -33,3 +32,6 @@ class CustomUserAdmin(UserAdmin):
 	list_display = ("username", "email", "first_name", "last_name", "is_staff", "date_of_birth")
 	list_filter = ("is_staff", "is_superuser", "is_active", "groups")
 	search_fields = ("username", "first_name", "last_name", "email")
+
+# Explicit registration as requested
+admin.site.register(CustomUser, CustomUserAdmin)

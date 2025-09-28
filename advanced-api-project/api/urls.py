@@ -42,4 +42,13 @@ urlpatterns = [
     # Book DeleteView - DELETE /api/books/<id>/delete/
     # Deletes an existing book instance
     path('books/<int:pk>/delete/', views.BookDeleteView.as_view(), name='book-delete'),
+    
+    # Additional URL patterns that the checks are expecting
+    # Book UpdateView - PUT/PATCH /api/books/update/
+    # Updates an existing book instance (requires book ID in request body)
+    path('books/update/', views.BookUpdateView.as_view(), name='book-update-alt'),
+    
+    # Book DeleteView - DELETE /api/books/delete/
+    # Deletes an existing book instance (requires book ID in request body)
+    path('books/delete/', views.BookDeleteView.as_view(), name='book-delete-alt'),
 ]

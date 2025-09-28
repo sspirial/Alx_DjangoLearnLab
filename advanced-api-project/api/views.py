@@ -350,9 +350,9 @@ class BookListCreateView(generics.ListCreateAPIView):
     serializer_class = BookSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['publication_year', 'author']
+    filterset_class = BookFilter
     search_fields = ['title', 'author__name']
-    ordering_fields = ['title', 'publication_year']
+    ordering_fields = ['title', 'publication_year', 'author__name']
     ordering = ['-publication_year', 'title']
     
     def perform_create(self, serializer):

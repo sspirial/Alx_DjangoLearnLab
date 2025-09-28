@@ -257,3 +257,120 @@ class BookDeleteView(generics.DestroyAPIView):
         
         # Perform the actual deletion
         instance.delete()
+
+
+class BookListCreateView(generics.ListCreateAPIView):
+    """
+    Combined API view for listing all books and creating new books.
+    
+    This view follows RESTful conventions by handling both GET (list) and 
+    POST (create) requests on the same endpoint. It's an alternative to 
+    separate ListView and CreateView classes.
+    
+    Features:
+    - GET: Returns paginated list of all books (no authentication required)
+    - POST: Creates new books (authentication required)
+    - Supports filtering, searching, and ordering for GET requests
+    - Validates data using BookSerializer for POST requests
+    
+    Endpoints:
+    - GET /api/books/ : Returns list of all books
+    - POST /api/books/ : Creates a new book
+    """
+    queryset = Book.objects.all().select_related('author')
+    serializer_class = BookSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['publication_year', 'author']
+    search_fields = ['title', 'author__name']
+    ordering_fields = ['title', 'publication_year']
+    ordering = ['-publication_year', 'title']
+    
+    def perform_create(self, serializer):
+        """
+        Custom create logic for the combined view.
+        """
+        print(f"Creating new book via combined endpoint: {serializer.validated_data.get('title')}")
+        serializer.save()
+
+
+class BookRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Combined API view for retrieving, updating, and deleting a single book.
+    
+    This view follows RESTful conventions by handling GET (retrieve), 
+    PUT/PATCH (update), and DELETE (destroy) requests on the same endpoint.
+    It's an alternative to separate DetailView, UpdateView, and DeleteView classes.
+    
+    Features:
+    - GET: Returns book details (no authentication required)
+    - PUT/PATCH: Updates book (authentication required)  
+    - DELETE: Deletes book (admin authentication required)
+    - Includes duplicate checking for updates
+    - Uses database transactions for data integrity
+    
+    Endpoints:
+    - GET /api/books/{id}/ : Returns details of a specific book
+    - PUT /api/books/{id}/ : Full update of a book
+    - PATCH /api/books/{id}/ : Partial update of a book  
+    - DELETE /api/books/{id}/ : Deletes a specific book
+    """
+    queryset = Book.objects.all().select_related('author')
+    serializer_class = BookSerializer
+    
+    def get_permissions(self):
+        """
+        Instantiate and return the list of permissions that this view requires.
+        
+        Different HTTP methods require different permission levels:
+        - GET: Read-only access for everyone
+        - PUT/PATCH: Authentication required
+        - DELETE: Admin access required
+        """
+        if self.request.method == 'DELETE':
+            permission_classes = [IsAdminOrReadOnly]
+        elif self.request.method in ['PUT', 'PATCH']:
+            permission_classes = [permissions.IsAuthenticated]
+        else:  # GET
+            permission_classes = [IsAuthenticatedOrReadOnly]
+            
+        return [permission() for permission in permission_classes]
+    
+    def perform_update(self, serializer):
+        """
+        Custom update logic with duplicate checking.
+        """
+        instance = serializer.instance
+        validated_data = serializer.validated_data
+        
+        # Get the new values (or keep existing ones for partial updates)
+        new_title = validated_data.get('title', instance.title)
+        new_author = validated_data.get('author', instance.author)
+        new_publication_year = validated_data.get('publication_year', instance.publication_year)
+        
+        # Check for duplicate books (excluding the current instance)
+        duplicate_exists = Book.objects.filter(
+            title__iexact=new_title,
+            author=new_author,
+            publication_year=new_publication_year
+        ).exclude(id=instance.id).exists()
+        
+        if duplicate_exists:
+            raise ValidationError(
+                f"A book with title '{new_title}' by {new_author.name} "
+                f"published in {new_publication_year} already exists."
+            )
+        
+        # Use database transaction to ensure data consistency
+        with transaction.atomic():
+            print(f"Updating book via combined endpoint: {instance.title} (ID: {instance.id})")
+            updated_book = serializer.save()
+            print(f"Successfully updated book: {updated_book.title}")
+            return updated_book
+    
+    def perform_destroy(self, instance):
+        """
+        Custom delete logic for the combined view.
+        """
+        print(f"Deleting book via combined endpoint: {instance.title}")
+        instance.delete()

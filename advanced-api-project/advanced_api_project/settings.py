@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -81,6 +82,26 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Test Database Configuration
+# Configure a separate test database to avoid impacting production/development data
+# During testing, Django automatically creates a separate test database with 'test_' prefix
+# This ensures complete isolation between test and production/development data
+
+# Override default test database behavior for better control
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',  # Use in-memory database for faster test execution
+        'TEST': {
+            'NAME': ':memory:',  # Ensure test database is always in-memory
+        },
+    }
+
+# Alternative configuration for file-based test database (uncomment if needed)
+# DATABASES['default']['TEST'] = {
+#     'NAME': BASE_DIR / 'test_db.sqlite3',  # Separate test database file
+# }
 
 
 # Password validation

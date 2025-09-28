@@ -5,6 +5,12 @@ This module contains thorough unit tests for all API endpoints in the advanced-a
 focusing on testing CRUD operations, filtering, searching, ordering, permissions, 
 authentication, and response data integrity.
 
+Test Database Isolation:
+- Django automatically creates a separate test database (test_db_name) 
+- Tests run in isolated transactions that are rolled back after each test
+- No production or development data is affected during testing
+- In-memory SQLite database used for fast test execution
+
 Test Coverage:
 - Model creation and validation
 - API endpoint functionality (CRUD operations)
@@ -16,6 +22,15 @@ Test Coverage:
 
 The tests use Django's built-in test framework and REST Framework's test utilities
 to simulate API requests and verify correct behavior under various conditions.
+
+Test Database Configuration:
+Django's test framework automatically handles database isolation by:
+1. Creating a separate test database with 'test_' prefix
+2. Running each test in a database transaction
+3. Rolling back all changes after each test completes
+4. Completely destroying the test database after the test suite finishes
+
+This ensures complete data isolation from production/development databases.
 """
 
 import json

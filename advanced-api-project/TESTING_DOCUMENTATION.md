@@ -141,7 +141,35 @@ Each test class uses the `setUp()` method to create consistent test data:
 
 1. **Django Environment**: Ensure Django and Django REST Framework are installed
 2. **Virtual Environment**: Activate the project's virtual environment
-3. **Database**: Tests use Django's in-memory test database (no setup required)
+3. **Database Isolation**: Tests automatically use a separate test database - no manual setup required
+
+### Test Database Isolation
+
+Our testing setup ensures **complete database isolation** through multiple mechanisms:
+
+#### **Automatic Test Database Creation**
+- Django automatically creates a separate test database with `test_` prefix
+- Example: `db.sqlite3` → `test_db.sqlite3` (or in-memory for speed)
+- Production/development data is **never affected**
+
+#### **In-Memory Database for Speed**
+- Tests use `:memory:` SQLite database for maximum performance
+- Each test runs in complete isolation with fresh database state
+- No persistent test data between test runs
+
+#### **Transaction Rollback**
+- Each test runs within a database transaction
+- All changes are automatically rolled back after each test
+- Ensures clean state for subsequent tests
+
+#### **Configuration Options**
+```python
+# Standard test execution (uses default settings with automatic test DB)
+python manage.py test api.test_views
+
+# Enhanced test execution (uses optimized test-specific settings)
+python manage.py test api.test_views --settings=advanced_api_project.test_settings
+```
 
 ### Execution Commands
 
@@ -150,29 +178,42 @@ Each test class uses the `setUp()` method to create consistent test data:
 # Navigate to project directory
 cd /path/to/advanced-api-project
 
-# Run all tests with verbose output
-python manage.py test api.test_views -v 2
-
-# Or using the local virtual environment
+# Standard test execution (automatic test database isolation)
 ./venv/bin/python manage.py test api.test_views -v 2
+
+# Enhanced test execution with optimized test settings
+./venv/bin/python manage.py test api.test_views --settings=advanced_api_project.test_settings -v 2
+
+# Quick test run (less verbose output)
+./venv/bin/python manage.py test api.test_views
 ```
 
 #### **Run Specific Test Classes**
 ```bash
 # Run only model tests
-python manage.py test api.test_views.ModelTestCase -v 2
+./venv/bin/python manage.py test api.test_views.ModelTestCase --settings=advanced_api_project.test_settings -v 2
 
 # Run only API endpoint tests  
-python manage.py test api.test_views.BookListViewTestCase -v 2
+./venv/bin/python manage.py test api.test_views.BookListViewTestCase --settings=advanced_api_project.test_settings -v 2
 
 # Run only permission tests
-python manage.py test api.test_views.PermissionTestCase -v 2
+./venv/bin/python manage.py test api.test_views.PermissionTestCase --settings=advanced_api_project.test_settings -v 2
 ```
 
 #### **Run Individual Tests**
 ```bash
-# Run a specific test method
-python manage.py test api.test_views.BookCreateViewTestCase.test_create_book_authenticated_success -v 2
+# Run a specific test method with database isolation
+./venv/bin/python manage.py test api.test_views.BookCreateViewTestCase.test_create_book_authenticated_success --settings=advanced_api_project.test_settings -v 2
+```
+
+#### **Database Isolation Verification**
+```bash
+# Verify test database isolation (check development DB is unchanged)
+./venv/bin/python manage.py shell -c "from api.models import Book; print(f'Development DB books: {Book.objects.count()}')"
+
+# Run tests and verify isolation
+./venv/bin/python manage.py test api.test_views --settings=advanced_api_project.test_settings
+./venv/bin/python manage.py shell -c "from api.models import Book; print(f'After tests - Development DB books: {Book.objects.count()}')"
 ```
 
 ### Expected Output

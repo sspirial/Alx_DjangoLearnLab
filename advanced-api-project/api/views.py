@@ -19,12 +19,12 @@ as needed for the specific use case.
 from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from .models import Book, Author
 from .serializers import BookSerializer
-from .permissions import IsAuthenticatedOrReadOnly, IsAdminOrReadOnly
 
 
 class BookListView(generics.ListAPIView):
@@ -52,7 +52,7 @@ class BookListView(generics.ListAPIView):
     """
     queryset = Book.objects.all().select_related('author')
     serializer_class = BookSerializer
-    permission_classes = [permissions.AllowAny]  # Allow read access to everyone
+    permission_classes = [IsAuthenticatedOrReadOnly]  # Allow read access to everyone
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['publication_year', 'author']
     search_fields = ['title', 'author__name']  # Allow searching by book title and author name
@@ -105,7 +105,7 @@ class BookCreateView(generics.CreateAPIView):
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Only authenticated users can create
+    permission_classes = [IsAuthenticated]  # Only authenticated users can create
     
     def perform_create(self, serializer):
         """
@@ -172,7 +172,7 @@ class BookUpdateView(generics.UpdateAPIView):
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Only authenticated users can update
+    permission_classes = [IsAuthenticated]  # Only authenticated users can update
     
     def perform_update(self, serializer):
         """
@@ -240,7 +240,7 @@ class BookDeleteView(generics.DestroyAPIView):
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    permission_classes = [IsAdminOrReadOnly]  # Only admin users can delete books
+    permission_classes = [IsAuthenticated]  # Only authenticated users can delete books
     
     def perform_destroy(self, instance):
         """
@@ -328,9 +328,9 @@ class BookRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         - DELETE: Admin access required
         """
         if self.request.method == 'DELETE':
-            permission_classes = [IsAdminOrReadOnly]
+            permission_classes = [IsAuthenticated]
         elif self.request.method in ['PUT', 'PATCH']:
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [IsAuthenticated]
         else:  # GET
             permission_classes = [IsAuthenticatedOrReadOnly]
             

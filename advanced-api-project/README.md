@@ -7,8 +7,11 @@ A Django REST Framework project demonstrating advanced API development with cust
 This project showcases the implementation of a sophisticated Django REST API that handles complex data relationships and demonstrates advanced DRF features including:
 
 - **Custom Serializers** with nested relationship handling
+- **Generic Views** with advanced CRUD operations
+- **Custom Permissions** for secure API access
 - **Data Validation** with custom validation logic
 - **One-to-Many Relationships** between Authors and Books
+- **RESTful URL Patterns** with filtering and search
 - **Comprehensive Documentation** and error handling
 - **Admin Interface** for easy data management
 
@@ -307,6 +310,124 @@ This project demonstrates:
    - Clear error messages
    - Consistent data structures
    - Comprehensive documentation
+
+## 🎯 API Endpoints and Views
+
+### Generic Views Implementation
+
+This project implements Django REST Framework's generic views to handle CRUD operations efficiently:
+
+#### BookListView (ListView)
+- **URL:** `GET /api/books/`
+- **Purpose:** Retrieve all books with filtering and search capabilities
+- **Features:**
+  - Filtering by publication year and author
+  - Search functionality across book titles and author names
+  - Ordering by title and publication year
+  - Pagination support
+- **Permissions:** Read access for everyone (`IsAuthenticatedOrReadOnly`)
+
+#### BookDetailView (DetailView)
+- **URL:** `GET /api/books/{id}/`
+- **Purpose:** Retrieve detailed information about a specific book
+- **Features:**
+  - Returns 404 if book doesn't exist
+  - Includes related author information
+- **Permissions:** Read access for everyone (`IsAuthenticatedOrReadOnly`)
+
+#### BookCreateView (CreateView)
+- **URL:** `POST /api/books/create/`
+- **Purpose:** Create new book instances
+- **Features:**
+  - Custom validation for publication year
+  - Duplicate detection
+  - Transaction safety
+- **Permissions:** Authenticated users only (`IsAuthenticated`)
+
+#### BookUpdateView (UpdateView)
+- **URLs:** 
+  - `PUT/PATCH /api/books/{id}/update/`
+  - `PUT/PATCH /api/books/update/` (alternative)
+- **Purpose:** Update existing book instances
+- **Features:**
+  - Supports both full (PUT) and partial (PATCH) updates
+  - Prevents duplicate books during updates
+  - Database transaction safety
+  - Custom validation logic
+- **Permissions:** Authenticated users only (`IsAuthenticated`)
+
+#### BookDeleteView (DeleteView)
+- **URLs:** 
+  - `DELETE /api/books/{id}/delete/`
+  - `DELETE /api/books/delete/` (alternative)
+- **Purpose:** Delete book instances
+- **Features:**
+  - Soft delete capability (configurable)
+  - Logging for audit trail
+- **Permissions:** Admin users only (`IsAdminOrReadOnly`)
+
+### Custom Permissions
+
+The project implements custom permission classes:
+
+1. **IsAuthenticatedOrReadOnly**
+   - Allows read access to any user
+   - Requires authentication for write operations
+
+2. **IsAdminOrReadOnly**
+   - Allows read access to any user
+   - Requires admin privileges for write operations
+
+3. **IsOwnerOrReadOnly**
+   - Allows read access to any user
+   - Requires ownership for write operations (future implementation)
+
+### URL Pattern Structure
+
+```python
+# RESTful URLs (recommended)
+GET/POST    /api/books/           # List/Create books
+GET/PUT/PATCH/DELETE /api/books/{id}/ # Retrieve/Update/Delete specific book
+
+# Alternative explicit URLs (for better discoverability)
+POST        /api/books/create/     # Create book
+PUT/PATCH   /api/books/{id}/update/ # Update book
+DELETE      /api/books/{id}/delete/ # Delete book
+PUT/PATCH   /api/books/update/     # Update book (ID in body)
+DELETE      /api/books/delete/     # Delete book (ID in body)
+```
+
+### Advanced Features
+
+1. **Filtering and Search**
+   ```python
+   # Filter by publication year
+   GET /api/books/?publication_year=2020
+   
+   # Filter by author
+   GET /api/books/?author=1
+   
+   # Search in titles and author names
+   GET /api/books/?search=Harry Potter
+   
+   # Order results
+   GET /api/books/?ordering=-publication_year
+   ```
+
+2. **Custom Validation**
+   - Publication year cannot be in the future
+   - Duplicate book detection (same title, author, year)
+   - Cross-field validation in serializers
+
+3. **Error Handling**
+   - Comprehensive error messages
+   - Proper HTTP status codes
+   - Validation error details
+
+4. **Database Optimization**
+   - `select_related()` for efficient queries
+   - Proper indexing through model meta options
+   - Transaction safety for data integrity
 
 ## 🛠️ Technology Stack
 

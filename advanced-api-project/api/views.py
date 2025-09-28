@@ -21,10 +21,55 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as filters_backend, FilterSet, CharFilter, NumberFilter, DateFilter
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from .models import Book, Author
 from .serializers import BookSerializer
+
+
+class BookFilter(FilterSet):
+    """
+    Custom filter set for advanced Book filtering capabilities.
+    
+    This FilterSet provides comprehensive filtering options for the Book model,
+    including exact matches, partial matches, and range filters.
+    
+    Available filters:
+    - title: Exact match filter for book title
+    - title__icontains: Case-insensitive partial match for book title
+    - author__name: Exact match filter for author name
+    - author__name__icontains: Case-insensitive partial match for author name
+    - publication_year: Exact match filter for publication year
+    - publication_year__gte: Filter for books published in or after a specific year
+    - publication_year__lte: Filter for books published in or before a specific year
+    """
+    # Title filters
+    title = CharFilter(lookup_expr='exact', help_text="Exact title match")
+    title__icontains = CharFilter(field_name='title', lookup_expr='icontains', 
+                                help_text="Case-insensitive partial title match")
+    
+    # Author filters
+    author__name = CharFilter(field_name='author__name', lookup_expr='exact',
+                            help_text="Exact author name match")
+    author__name__icontains = CharFilter(field_name='author__name', lookup_expr='icontains',
+                                       help_text="Case-insensitive partial author name match")
+    
+    # Publication year filters
+    publication_year = NumberFilter(lookup_expr='exact', 
+                                  help_text="Exact publication year match")
+    publication_year__gte = NumberFilter(field_name='publication_year', lookup_expr='gte',
+                                       help_text="Books published in or after this year")
+    publication_year__lte = NumberFilter(field_name='publication_year', lookup_expr='lte',
+                                       help_text="Books published in or before this year")
+    
+    class Meta:
+        model = Book
+        fields = {
+            'title': ['exact', 'icontains'],
+            'author__name': ['exact', 'icontains'],
+            'publication_year': ['exact', 'gte', 'lte'],
+        }
 
 
 class BookListView(generics.ListAPIView):
@@ -36,28 +81,52 @@ class BookListView(generics.ListAPIView):
     
     Features:
     - Read-only access (no authentication required)
-    - Supports filtering by publication year and author
-    - Supports searching in book titles and author names
-    - Supports ordering by title and publication year
+    - Advanced filtering with exact, partial, and range filters
+    - Full-text search in book titles and author names
+    - Flexible ordering by multiple fields
     - Paginated results for better performance
     
     Endpoints:
     - GET /api/books/ : Returns list of all books
     
     Query Parameters:
-    - publication_year: Filter books by publication year
-    - author: Filter books by author ID
-    - search: Search in book titles and author names
-    - ordering: Order results (title, -title, publication_year, -publication_year)
+    Filtering:
+    - title: Exact title match
+    - title__icontains: Case-insensitive partial title match
+    - author__name: Exact author name match
+    - author__name__icontains: Case-insensitive partial author name match
+    - publication_year: Exact publication year
+    - publication_year__gte: Books published in or after this year
+    - publication_year__lte: Books published in or before this year
+    
+    Searching:
+    - search: Full-text search in book titles and author names
+    
+    Ordering:
+    - ordering: Order by title, publication_year (use '-' prefix for descending)
+    
+    Examples:
+    - /api/books/?title__icontains=django : Books with "django" in title
+    - /api/books/?publication_year__gte=2020 : Books from 2020 onwards
+    - /api/books/?search=python : Search for "python" in titles and authors
+    - /api/books/?ordering=-publication_year,title : Order by year (desc), then title (asc)
     """
     queryset = Book.objects.all().select_related('author')
     serializer_class = BookSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]  # Allow read access to everyone
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    # Configure filter backends
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['publication_year', 'author']
-    search_fields = ['title', 'author__name']  # Allow searching by book title and author name
-    ordering_fields = ['title', 'publication_year']
-    ordering = ['-publication_year', 'title']  # Default ordering
+    
+    # Use custom filterset class for advanced filtering
+    filterset_class = BookFilter
+    
+    # Configure search fields for full-text search
+    search_fields = ['title', 'author__name']
+    
+    # Configure ordering fields
+    ordering_fields = ['title', 'publication_year', 'author__name']
+    ordering = ['-publication_year', 'title']  # Default ordering: newest first, then alphabetical
 
 
 class BookDetailView(generics.RetrieveAPIView):

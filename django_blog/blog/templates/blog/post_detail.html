@@ -1,0 +1,40 @@
+{% extends 'blog/base.html' %}
+{% load static %}
+
+{% block title %}{{ post.title }} - Django Blog{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <article class="mb-4">
+            <h1 class="mb-3">{{ post.title }}</h1>
+            
+            <div class="text-muted mb-4">
+                <small>
+                    By <strong>{{ post.author.username }}</strong> on {{ post.published_date|date:"F d, Y" }}
+                </small>
+            </div>
+            
+            <div class="post-content">
+                {{ post.content|linebreaks }}
+            </div>
+        </article>
+        
+        <div class="mt-4">
+            <a href="{% url 'blog:post_list' %}" class="btn btn-secondary">← Back to All Posts</a>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Author Info</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ post.author.get_full_name|default:post.author.username }}</h6>
+                <p class="card-text">Published on {{ post.published_date|date:"F d, Y" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

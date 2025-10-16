@@ -99,18 +99,63 @@ class UserProfileSerializer(serializers.ModelSerializer):
     Serializer for user profile management.
     Allows users to view and update their profile information.
     """
+
     followers = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    following = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    followers_count = serializers.SerializerMethodField(read_only=True)
+    following_count = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "bio", "profile_picture", "followers")
-        read_only_fields = ("id", "username", "email", "followers")
+        fields = (
+            "id",
+            "username",
+            "email",
+            "bio",
+            "profile_picture",
+            "followers",
+            "following",
+            "followers_count",
+            "following_count",
+        )
+        read_only_fields = (
+            "id",
+            "username",
+            "email",
+            "followers",
+            "following",
+            "followers_count",
+            "following_count",
+        )
+
+    def get_followers_count(self, obj) -> int:
+        return obj.followers.count()
+
+    def get_following_count(self, obj) -> int:
+        return obj.following.count()
 
 
 class UserSerializer(serializers.ModelSerializer):
     """Lightweight serializer for embedding user details in responses."""
 
+    followers_count = serializers.SerializerMethodField(read_only=True)
+    following_count = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'bio', 'profile_picture')
-        read_only_fields = ('id', 'username', 'email', 'bio', 'profile_picture')
+        fields = (
+            'id',
+            'username',
+            'email',
+            'bio',
+            'profile_picture',
+            'followers_count',
+            'following_count',
+        )
+        read_only_fields = fields
+
+    def get_followers_count(self, obj) -> int:
+        return obj.followers.count()
+
+    def get_following_count(self, obj) -> int:
+        return obj.following.count()

@@ -1,7 +1,7 @@
 """ViewSets for posts and comments."""
 
 from django.db.models import Prefetch
-from rest_framework import filters, permissions, viewsets
+from rest_framework import filters, generics, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 
 from .models import Comment, Post
@@ -51,6 +51,25 @@ class PostViewSet(viewsets.ModelViewSet):
 
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
+
+
+class FeedView(generics.ListAPIView):
+	"""Return a paginated feed of posts from users the requester follows."""
+
+	serializer_class = PostSerializer
+	permission_classes = [permissions.IsAuthenticated]
+	pagination_class = PostPagination
+
+	def get_queryset(self):
+		user = self.request.user
+		following = user.following.all()
+		return (
+			Post.objects.filter(author__in=following)
+			.select_related('author')
+			.prefetch_related(
+				Prefetch('comments', queryset=Comment.objects.select_related('author'))
+			)
+		)
 
 
 class CommentViewSet(viewsets.ModelViewSet):

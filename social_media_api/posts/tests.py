@@ -127,3 +127,45 @@ class CommentApiTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertEqual(response.data['count'], 1)
 		self.assertEqual(response.data['results'][0]['content'], 'First comment')
+
+
+class FeedApiTests(APITestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(
+			username='feed_user',
+			email='feed_user@example.com',
+			password='Secret123!'
+		)
+		self.followed_user = User.objects.create_user(
+			username='followed',
+			email='followed@example.com',
+			password='Secret123!'
+		)
+		self.other_user = User.objects.create_user(
+			username='stranger',
+			email='stranger@example.com',
+			password='Secret123!'
+		)
+		self.feed_url = reverse('posts:feed')
+
+	def test_feed_requires_authentication(self):
+		response = self.client.get(self.feed_url)
+		self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+	def test_feed_returns_followed_users_posts(self):
+		first_post = Post.objects.create(author=self.followed_user, title='First', content='First content')
+		second_post = Post.objects.create(author=self.followed_user, title='Second', content='Second content')
+		Post.objects.create(author=self.other_user, title='Hidden', content='Should not appear')
+
+		self.user.following.add(self.followed_user)
+		self.client.force_authenticate(user=self.user)
+
+		response = self.client.get(self.feed_url)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data['count'], 2)
+		returned_titles = [item['title'] for item in response.data['results']]
+		self.assertIn(second_post.title, returned_titles)
+		self.assertIn(first_post.title, returned_titles)
+		self.assertNotIn('Hidden', returned_titles)
+		self.assertEqual(returned_titles[0], second_post.title)

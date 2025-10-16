@@ -19,7 +19,8 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 - **Custom User Model**: Extended Django's AbstractUser with additional fields
   - Bio
   - Profile Picture
-  - Followers/Following functionality
+- **Social Graph**: Follow and unfollow users with bidirectional follower counts
+- **Personalized Feed**: Aggregated timeline of posts from followed users
 - **Token-based Authentication**: Secure authentication using DRF's token authentication
 - **User Registration**: Create new user accounts with automatic token generation
 - **User Login/Logout**: Authenticate users and manage sessions
@@ -132,7 +133,9 @@ Base URL: `http://127.0.0.1:8000/api/accounts/`
       "username": "johndoe",
       "email": "john@example.com",
       "bio": "Software developer and tech enthusiast",
-      "profile_picture": null
+      "profile_picture": null,
+      "followers_count": 0,
+      "following_count": 0
     },
     "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
     "message": "User registered successfully"
@@ -158,7 +161,9 @@ Base URL: `http://127.0.0.1:8000/api/accounts/`
       "username": "johndoe",
       "email": "john@example.com",
       "bio": "Software developer and tech enthusiast",
-      "profile_picture": null
+      "profile_picture": null,
+      "followers_count": 10,
+      "following_count": 5
     },
     "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
     "message": "Login successful"
@@ -198,9 +203,57 @@ Base URL: `http://127.0.0.1:8000/api/accounts/`
     "email": "john@example.com",
     "bio": "Software developer and tech enthusiast",
     "profile_picture": null,
-    "followers_count": 10,
-    "following_count": 5,
-    "date_joined": "2025-10-11T10:30:00Z"
+    "followers": [2, 3],
+    "following": [4, 5, 6],
+    "followers_count": 2,
+    "following_count": 3
+  }
+  ```
+
+#### 5. Follow a User
+- **URL**: `/api/accounts/follow/<user_id>/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Response Codes**:
+  - `201 Created` when a new follow relationship is created
+  - `200 OK` if the user is already followed
+  - `400 Bad Request` when trying to follow yourself
+- **Sample Response** (201 Created):
+  ```json
+  {
+    "detail": "You are now following janedoe.",
+    "user": {
+      "id": 2,
+      "username": "janedoe",
+      "email": "jane@example.com",
+      "bio": "Product designer",
+      "profile_picture": null,
+      "followers_count": 125,
+      "following_count": 58
+    }
+  }
+  ```
+
+#### 6. Unfollow a User
+- **URL**: `/api/accounts/unfollow/<user_id>/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Response Codes**:
+  - `200 OK` when a follow relationship is removed
+  - `400 Bad Request` when the user wasn't followed or when unfollowing yourself
+- **Sample Response** (200 OK):
+  ```json
+  {
+    "detail": "You have unfollowed janedoe.",
+    "user": {
+      "id": 2,
+      "username": "janedoe",
+      "email": "jane@example.com",
+      "bio": "Product designer",
+      "profile_picture": null,
+      "followers_count": 124,
+      "following_count": 57
+    }
   }
   ```
 
@@ -220,9 +273,10 @@ Base URL: `http://127.0.0.1:8000/api/accounts/`
     "email": "newemail@example.com",
     "bio": "Updated bio text",
     "profile_picture": null,
-    "followers_count": 10,
-    "following_count": 5,
-    "date_joined": "2025-10-11T10:30:00Z"
+    "followers": [2, 3],
+    "following": [4, 5, 6],
+    "followers_count": 2,
+    "following_count": 3
   }
   ```
 
@@ -325,6 +379,41 @@ Base URL: `http://127.0.0.1:8000/api/`
   - `204 No Content` on successful delete
   - `403 Forbidden` when attempting to modify a comment you do not own
 
+### Feed
+
+- **URL**: `/api/feed/` *(also available as `/api/posts/feed/`)*
+- **Method**: `GET`
+- **Authentication**: Required (Token)
+- **Description**: Returns a paginated timeline of posts authored by users the current user follows, ordered by newest first.
+- **Sample Response** (200 OK):
+  ```json
+  {
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 12,
+        "author": {
+          "id": 3,
+          "username": "janedoe",
+          "email": "jane@example.com",
+          "bio": "Product designer",
+          "profile_picture": null,
+          "followers_count": 124,
+          "following_count": 57
+        },
+        "title": "New product launch",
+        "content": "Behind the scenes of our latest release.",
+        "created_at": "2025-10-16T12:45:00Z",
+        "updated_at": "2025-10-16T12:45:00Z",
+        "comments_count": 3,
+        "comments": []
+      }
+    ]
+  }
+  ```
+
 ## User Model
 
 The custom user model extends Django's `AbstractUser` with the following additional fields:
@@ -333,11 +422,13 @@ The custom user model extends Django's `AbstractUser` with the following additio
 |-------|------|-------------|
 | `bio` | TextField | User biography (max 500 characters) |
 | `profile_picture` | ImageField | User's profile picture |
-| `followers` | ManyToManyField | Users following this user (self-referential) |
+| `following` | ManyToManyField | Users this user is following (self-referential) |
+| `followers` | Reverse Relation | Users following this user (accessible via `user.followers.all()`) |
 
 ### Relationships
-- **Followers**: ManyToMany relationship with `symmetrical=False`
-- **Following**: Accessible via `user.following.all()`
+- **Following**: Direct ManyToMany relationship stored on each user via `user.following`
+- **Followers**: Reverse relationship exposed through `user.followers`
+- **Helper Methods**: `follow()`, `unfollow()`, and `is_following()` simplify managing relationships
 
 ## Authentication
 

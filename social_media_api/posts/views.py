@@ -62,9 +62,9 @@ class FeedView(generics.ListAPIView):
 
 	def get_queryset(self):
 		user = self.request.user
-		following = user.following.all()
+		following_users = user.following.all()
 		return (
-			Post.objects.filter(author__in=following)
+			Post.objects.filter(author__in=following_users).order_by('-created_at')
 			.select_related('author')
 			.prefetch_related(
 				Prefetch('comments', queryset=Comment.objects.select_related('author'))

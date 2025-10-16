@@ -8,6 +8,7 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [API Endpoints](#api-endpoints)
+- [Posts & Comments Endpoints](#posts--comments-endpoints)
 - [User Model](#user-model)
 - [Authentication](#authentication)
 - [Testing](#testing)
@@ -23,6 +24,7 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 - **User Registration**: Create new user accounts with automatic token generation
 - **User Login/Logout**: Authenticate users and manage sessions
 - **Profile Management**: View and update user profiles
+- **Posts & Comments**: Create, search, paginate, and manage posts with threaded comments and ownership permissions
 - **RESTful API**: Clean, well-structured API endpoints
 
 ## Tech Stack
@@ -224,6 +226,105 @@ Base URL: `http://127.0.0.1:8000/api/accounts/`
   }
   ```
 
+## Posts & Comments Endpoints
+
+Base URL: `http://127.0.0.1:8000/api/`
+
+### Posts
+
+#### List & Create Posts
+- **URL**: `/api/posts/`
+- **Methods**: `GET`, `POST`
+- **Authentication**: `GET` is public, `POST` requires token authentication
+- **Query Params**:
+  - `search`: Filter by `title` or `content`
+  - `ordering`: Order by `created_at`, `updated_at`, or `title`
+  - `page`, `page_size`: Control pagination (default 10 per page)
+- **POST Body**:
+  ```json
+  {
+    "title": "Building a Social Media API",
+    "content": "Walkthrough of the new posts and comments feature."
+  }
+  ```
+- **Sample GET Response** (200 OK):
+  ```json
+  {
+    "count": 1,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 3,
+        "author": {
+          "id": 1,
+          "username": "johndoe",
+          "email": "john@example.com",
+          "bio": "Software developer and tech enthusiast",
+          "profile_picture": null
+        },
+        "title": "Building a Social Media API",
+        "content": "Walkthrough of the new posts and comments feature.",
+        "created_at": "2025-10-16T09:00:00Z",
+        "updated_at": "2025-10-16T09:00:00Z",
+        "comments_count": 2,
+        "comments": [
+          {
+            "id": 10,
+            "post": 3,
+            "author": {
+              "id": 2,
+              "username": "janedoe",
+              "email": "jane@example.com",
+              "bio": "UX specialist",
+              "profile_picture": null
+            },
+            "content": "Excited to try this!",
+            "created_at": "2025-10-16T09:05:00Z",
+            "updated_at": "2025-10-16T09:05:00Z"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+#### Retrieve, Update, Delete a Post
+- **URL**: `/api/posts/<id>/`
+- **Methods**: `GET`, `PUT`, `PATCH`, `DELETE`
+- **Authentication**: `GET` is public; write operations require ownership of the post
+- **Responses**:
+  - `200 OK` on successful read or update
+  - `204 No Content` on successful delete
+  - `403 Forbidden` when attempting to modify a post you do not own
+
+### Comments
+
+#### List & Create Comments
+- **URL**: `/api/comments/`
+- **Methods**: `GET`, `POST`
+- **Authentication**: `POST` requires token authentication
+- **Query Params**:
+  - `post`: Filter comments to a specific post ID
+  - `author`: Filter comments created by a specific user ID
+  - `page`, `page_size`: Control pagination (default 20 per page)
+- **POST Body**:
+  ```json
+  {
+    "post": 3,
+    "content": "Great breakdown!"
+  }
+  ```
+
+#### Retrieve, Update, Delete a Comment
+- **URL**: `/api/comments/<id>/`
+- **Methods**: `GET`, `PUT`, `PATCH`, `DELETE`
+- **Authentication**: `GET` is public; write operations require ownership of the comment
+- **Responses**:
+  - `200 OK` on successful read or update
+  - `204 No Content` on successful delete
+  - `403 Forbidden` when attempting to modify a comment you do not own
+
 ## User Model
 
 The custom user model extends Django's `AbstractUser` with the following additional fields:
@@ -333,10 +434,41 @@ print(response.json())
    - Headers: `Authorization: Token <token-from-login>`
    - Expected: 200 OK with logout message
 
+6. **Test Post Creation**
+   - Method: POST
+   - URL: `http://127.0.0.1:8000/api/posts/`
+   - Headers: `Authorization: Token <token-from-login>`
+   - Body (JSON):
+     ```json
+     {
+       "title": "My first post",
+       "content": "Hello, world!"
+     }
+     ```
+   - Expected: 201 Created with post data
+
+7. **Test Commenting on a Post**
+   - Method: POST
+   - URL: `http://127.0.0.1:8000/api/comments/`
+   - Headers: `Authorization: Token <token-from-login>`
+   - Body (JSON):
+     ```json
+     {
+       "post": 1,
+       "content": "This is helpful!"
+     }
+     ```
+   - Expected: 201 Created with comment data
+
+8. **Test Post Search & Pagination**
+   - Method: GET
+   - URL: `http://127.0.0.1:8000/api/posts/?search=hello&page=1&page_size=5`
+   - Expected: 200 OK with filtered, paginated results
+
 ### Running Unit Tests
 
 ```bash
-python manage.py test accounts
+python manage.py test accounts posts
 ```
 
 ## Project Structure
@@ -353,6 +485,15 @@ social_media_api/
 │   ├── serializers.py            # DRF serializers
 │   ├── urls.py                   # App URL routing
 │   └── views.py                  # API views
+├── posts/                         # Posts & comments app
+│   ├── migrations/                # Database migrations
+│   ├── admin.py                   # Admin registrations
+│   ├── models.py                  # Post and comment models
+│   ├── permissions.py             # Ownership rules
+│   ├── serializers.py             # Post/comment serializers
+│   ├── tests.py                   # API tests for posts/comments
+│   ├── urls.py                    # DRF router configuration
+│   └── views.py                   # Viewsets and pagination
 ├── social_media_api/             # Project configuration
 │   ├── __init__.py
 │   ├── asgi.py                   # ASGI configuration
@@ -390,8 +531,8 @@ pip install django-cors-headers
 ## Next Steps
 
 Future enhancements for this API:
-- [ ] Posts/Feed functionality
-- [ ] Comments and Likes
+- [ ] Personalized feed recommendations
+- [ ] Reactions/Likes on posts and comments
 - [ ] Follow/Unfollow endpoints
 - [ ] Direct messaging
 - [ ] Notifications system

@@ -28,6 +28,7 @@ class CommentPagination(PageNumberPagination):
 class PostViewSet(viewsets.ModelViewSet):
 	"""CRUD operations for posts with search, ordering, and owner checks."""
 
+	queryset = Post.objects.all()
 	serializer_class = PostSerializer
 	permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 	pagination_class = PostPagination
@@ -40,7 +41,8 @@ class PostViewSet(viewsets.ModelViewSet):
 		"""Prefetch related data for efficient queries."""
 
 		return (
-			Post.objects
+			super()
+			.get_queryset()
 			.select_related('author')
 			.prefetch_related(
 				Prefetch('comments', queryset=Comment.objects.select_related('author'))
@@ -54,6 +56,7 @@ class PostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
 	"""CRUD operations for comments scoped by user and post."""
 
+	queryset = Comment.objects.all()
 	serializer_class = CommentSerializer
 	permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 	pagination_class = CommentPagination
@@ -63,7 +66,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 	ordering = ('created_at',)
 
 	def get_queryset(self):
-		queryset = Comment.objects.select_related('author', 'post', 'post__author')
+		queryset = super().get_queryset().select_related('author', 'post', 'post__author')
 
 		post_id = self.request.query_params.get('post')
 		if post_id:

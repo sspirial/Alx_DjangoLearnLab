@@ -2,17 +2,7 @@ from django.conf import settings
 from django.db import models
 
 
-class TimeStampedModel(models.Model):
-	"""Abstract base model providing created/updated timestamps."""
-
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-
-	class Meta:
-		abstract = True
-
-
-class Post(TimeStampedModel):
+class Post(models.Model):
 	"""Represents a user-generated post."""
 
 	author = models.ForeignKey(
@@ -22,6 +12,8 @@ class Post(TimeStampedModel):
 	)
 	title = models.CharField(max_length=255)
 	content = models.TextField()
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
 
 	class Meta:
 		ordering = ('-created_at',)
@@ -30,7 +22,7 @@ class Post(TimeStampedModel):
 		return f"{self.title} (by {self.author})"
 
 
-class Comment(TimeStampedModel):
+class Comment(models.Model):
 	"""Represents a comment left on a post by a user."""
 
 	post = models.ForeignKey(
@@ -44,6 +36,8 @@ class Comment(TimeStampedModel):
 		related_name='comments',
 	)
 	content = models.TextField()
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
 
 	class Meta:
 		ordering = ('created_at',)

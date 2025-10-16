@@ -33,10 +33,12 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 
 ## Tech Stack
 
-- **Python 3.12+**
+- **Python 3.11+**
 - **Django 5.2.7**
 - **Django REST Framework**
-- **SQLite** (default database, can be changed to PostgreSQL/MySQL)
+- **SQLite** (development) / **PostgreSQL** (production via Amazon RDS)
+- **Gunicorn** (production WSGI server)
+- **django-storages + Amazon S3** for static/media in production
 - **Pillow** (for image handling)
 
 ## Installation
@@ -66,9 +68,9 @@ A robust Django REST Framework-based Social Media API with user authentication, 
    ```
 
 3. **Install dependencies**
-   ```bash
-   pip install django djangorestframework Pillow
-   ```
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 4. **Apply migrations**
    ```bash
@@ -82,13 +84,15 @@ A robust Django REST Framework-based Social Media API with user authentication, 
    ```
 
 6. **Run the development server**
-   ```bash
-   python manage.py runserver
-   ```
+  ```bash
+  python manage.py runserver
+  ```
 
    The API will be available at `http://127.0.0.1:8000/`
 
 ## Configuration
+
+For a complete production checklist and AWS deployment steps, see [`DEPLOYMENT_AWS.md`](./DEPLOYMENT_AWS.md).
 
 ### Settings Overview
 
@@ -97,7 +101,8 @@ The project is configured with the following key settings:
 - **Custom User Model**: `AUTH_USER_MODEL = 'accounts.CustomUser'`
 - **Authentication Classes**: Token Authentication & Session Authentication
 - **Pagination**: 10 items per page
-- **Media Files**: Uploaded files stored in `media/` directory
+- **Static Files**: Served from `/static/` in development, collected to S3 in production via `django-storages`
+- **Media Files**: Uploaded files stored in `media/` locally or the S3 media prefix in production
 
 ### Important Files
 

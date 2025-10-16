@@ -9,6 +9,7 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 - [Configuration](#configuration)
 - [API Endpoints](#api-endpoints)
 - [Posts & Comments Endpoints](#posts--comments-endpoints)
+- [Notifications Endpoints](#notifications-endpoints)
 - [User Model](#user-model)
 - [Authentication](#authentication)
 - [Testing](#testing)
@@ -26,6 +27,8 @@ A robust Django REST Framework-based Social Media API with user authentication, 
 - **User Login/Logout**: Authenticate users and manage sessions
 - **Profile Management**: View and update user profiles
 - **Posts & Comments**: Create, search, paginate, and manage posts with threaded comments and ownership permissions
+- **Engagement Signals**: Like or unlike posts with optimistic updates and duplicate safeguards
+- **Activity Notifications**: Automatic alerts for new followers, likes, and comments with unread tracking
 - **RESTful API**: Clean, well-structured API endpoints
 
 ## Tech Stack
@@ -322,6 +325,8 @@ Base URL: `http://127.0.0.1:8000/api/`
         "created_at": "2025-10-16T09:00:00Z",
         "updated_at": "2025-10-16T09:00:00Z",
         "comments_count": 2,
+  "likes_count": 5,
+  "is_liked": false,
         "comments": [
           {
             "id": 10,
@@ -351,6 +356,48 @@ Base URL: `http://127.0.0.1:8000/api/`
   - `200 OK` on successful read or update
   - `204 No Content` on successful delete
   - `403 Forbidden` when attempting to modify a post you do not own
+
+> **Tip:** Every serialized post now includes `likes_count` and a boolean `is_liked` flag scoped to the requesting user.
+
+#### Like a Post
+- **URL**: `/api/posts/<id>/like/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Success Response** (201 Created when a new like is registered):
+  ```json
+  {
+    "detail": "Post liked.",
+    "likes_count": 12,
+    "like": {
+      "id": 44,
+      "post": 18,
+      "user": {
+        "id": 5,
+        "username": "johndoe",
+        "email": "john@example.com",
+        "bio": "Software developer and tech enthusiast",
+        "profile_picture": null,
+        "followers_count": 10,
+        "following_count": 5
+      },
+      "created_at": "2025-10-16T09:45:00Z"
+    }
+  }
+  ```
+- Subsequent likes by the same user are idempotent and return `200 OK` with the existing like record.
+
+#### Unlike a Post
+- **URL**: `/api/posts/<id>/unlike/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Success Response** (200 OK):
+  ```json
+  {
+    "detail": "Post unliked.",
+    "likes_count": 11
+  }
+  ```
+- Attempting to unlike a post that was never liked returns `400 Bad Request`.
 
 ### Comments
 
@@ -411,6 +458,79 @@ Base URL: `http://127.0.0.1:8000/api/`
         "comments": []
       }
     ]
+  }
+  ```
+
+## Notifications Endpoints
+
+Base URL: `http://127.0.0.1:8000/api/notifications/`
+
+Notifications let users stay on top of new followers, likes on their posts, and incoming comments. Each record includes:
+
+- `verb`: A human-readable description (e.g., "liked your post")
+- `actor`: The user who performed the action
+- `recipient`: The user receiving the notification
+- `target_type`, `target_id`, and `target_repr`: Context about the object that triggered the notification
+- `metadata`: Optional structured payload for client-side deep linking
+- `is_read`: Boolean flag for inbox-style read/unread tracking
+
+### List Notifications
+- **URL**: `/api/notifications/`
+- **Method**: `GET`
+- **Authentication**: Required (Token)
+- **Query Params**: Inherits default pagination (`page`, `page_size`)
+- **Sample Response** (200 OK):
+  ```json
+  {
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 51,
+        "recipient": { "id": 3, "username": "janedoe", "email": "jane@example.com", "bio": "Product designer", "profile_picture": null, "followers_count": 124, "following_count": 57 },
+        "actor": { "id": 5, "username": "johndoe", "email": "john@example.com", "bio": "Software developer and tech enthusiast", "profile_picture": null, "followers_count": 10, "following_count": 5 },
+        "verb": "liked your post",
+        "metadata": { "post_id": 18, "post_title": "New product launch" },
+        "timestamp": "2025-10-16T13:05:00Z",
+        "is_read": false,
+        "target_type": "post",
+        "target_id": 18,
+        "target_repr": "New product launch (by janedoe)"
+      }
+    ],
+    "unread_count": 2
+  }
+  ```
+
+### Mark a Notification as Read
+- **URL**: `/api/notifications/<id>/read/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Description**: Marks a single notification as read and returns the updated record.
+- **Success Response** (200 OK):
+  ```json
+  {
+    "id": 51,
+    "verb": "liked your post",
+    "is_read": true,
+    "timestamp": "2025-10-16T13:05:00Z",
+    "target_type": "post",
+    "target_id": 18,
+    "target_repr": "New product launch (by janedoe)",
+    "metadata": { "post_id": 18 }
+  }
+  ```
+
+### Mark All Notifications as Read
+- **URL**: `/api/notifications/read-all/`
+- **Method**: `POST`
+- **Authentication**: Required (Token)
+- **Description**: Marks every unread notification as read in a single call.
+- **Success Response** (200 OK):
+  ```json
+  {
+    "detail": "Marked 5 notifications as read."
   }
   ```
 

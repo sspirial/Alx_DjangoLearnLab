@@ -4,9 +4,21 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
-from .models import Comment, Post
+from .models import Comment, Like, Post
 
 User = get_user_model()
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    """Serializer for representing likes on a post."""
+
+    user = UserSerializer(read_only=True)
+    post = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Like
+        fields = ('id', 'post', 'user', 'created_at')
+        read_only_fields = ('id', 'post', 'user', 'created_at')
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -39,6 +51,8 @@ class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     comments_count = serializers.SerializerMethodField(read_only=True)
+    likes_count = serializers.SerializerMethodField(read_only=True)
+    is_liked = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Post
@@ -51,6 +65,8 @@ class PostSerializer(serializers.ModelSerializer):
             'updated_at',
             'comments_count',
             'comments',
+            'likes_count',
+            'is_liked',
         )
         read_only_fields = (
             'id',
@@ -59,6 +75,8 @@ class PostSerializer(serializers.ModelSerializer):
             'updated_at',
             'comments_count',
             'comments',
+            'likes_count',
+            'is_liked',
         )
 
     def validate_title(self, value: str) -> str:
@@ -73,3 +91,12 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_comments_count(self, obj: Post) -> int:
         return obj.comments.count()
+
+    def get_likes_count(self, obj: Post) -> int:
+        return obj.likes.count()
+
+    def get_is_liked(self, obj: Post) -> bool:
+        request = self.context.get('request')
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.likes.filter(user=request.user).exists()

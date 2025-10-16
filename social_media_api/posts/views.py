@@ -1,12 +1,16 @@
 """ViewSets for posts and comments."""
 
 from django.db.models import Prefetch
-from rest_framework import filters, generics, permissions, viewsets
+from rest_framework import filters, generics, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
-from .models import Comment, Post
+from notifications.services import create_notification
+
+from .models import Comment, Like, Post
 from .permissions import IsOwnerOrReadOnly
-from .serializers import CommentSerializer, PostSerializer
+from .serializers import CommentSerializer, LikeSerializer, PostSerializer
 
 
 class PostPagination(PageNumberPagination):
@@ -45,12 +49,63 @@ class PostViewSet(viewsets.ModelViewSet):
 			.get_queryset()
 			.select_related('author')
 			.prefetch_related(
-				Prefetch('comments', queryset=Comment.objects.select_related('author'))
+				Prefetch('comments', queryset=Comment.objects.select_related('author')),
+				Prefetch('likes', queryset=Like.objects.select_related('user')),
 			)
 		)
 
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
+
+	@action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+	def like(self, request, pk=None):
+		post = self.get_object()
+		like, created = Like.objects.get_or_create(post=post, user=request.user)
+
+		if created:
+			create_notification(
+				recipient=post.author,
+				actor=request.user,
+				verb='liked your post',
+				target=post,
+				metadata={'post_id': post.pk, 'post_title': post.title},
+			)
+			status_code = status.HTTP_201_CREATED
+			message = 'Post liked.'
+		else:
+			status_code = status.HTTP_200_OK
+			message = 'Post already liked.'
+
+		likes_total = Like.objects.filter(post=post).count()
+
+		return Response(
+			{
+				'detail': message,
+				'like': LikeSerializer(like, context={'request': request}).data,
+				'likes_count': likes_total,
+			},
+			status=status_code,
+		)
+
+	@action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+	def unlike(self, request, pk=None):
+		post = self.get_object()
+		deleted, _ = Like.objects.filter(post=post, user=request.user).delete()
+
+		if deleted:
+			likes_total = Like.objects.filter(post=post).count()
+			return Response(
+				{
+					'detail': 'Post unliked.',
+					'likes_count': likes_total,
+				},
+				status=status.HTTP_200_OK,
+			)
+
+		return Response(
+			{'detail': 'You have not liked this post.'},
+			status=status.HTTP_400_BAD_REQUEST,
+		)
 
 
 class FeedView(generics.ListAPIView):
@@ -67,7 +122,8 @@ class FeedView(generics.ListAPIView):
 			Post.objects.filter(author__in=following_users).order_by('-created_at')
 			.select_related('author')
 			.prefetch_related(
-				Prefetch('comments', queryset=Comment.objects.select_related('author'))
+				Prefetch('comments', queryset=Comment.objects.select_related('author')),
+				Prefetch('likes', queryset=Like.objects.select_related('user')),
 			)
 		)
 
@@ -98,4 +154,11 @@ class CommentViewSet(viewsets.ModelViewSet):
 		return queryset
 
 	def perform_create(self, serializer):
-		serializer.save(author=self.request.user)
+		comment = serializer.save(author=self.request.user)
+		create_notification(
+			recipient=comment.post.author,
+			actor=self.request.user,
+			verb='commented on your post',
+			target=comment.post,
+			metadata={'comment_id': comment.pk, 'post_id': comment.post.pk},
+		)

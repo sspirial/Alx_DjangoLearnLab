@@ -5,7 +5,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Comment, Post
+from notifications.models import Notification
+
+from .models import Comment, Like, Post
 
 User = get_user_model()
 
@@ -100,6 +102,20 @@ class CommentApiTests(APITestCase):
 		comment = Comment.objects.get()
 		self.assertEqual(comment.author, self.commenter)
 		self.assertEqual(comment.post, self.post)
+		self.assertEqual(Notification.objects.count(), 1)
+		notification = Notification.objects.first()
+		self.assertEqual(notification.recipient, self.post_owner)
+		self.assertEqual(notification.actor, self.commenter)
+		self.assertEqual(notification.verb, 'commented on your post')
+
+	def test_comment_by_author_does_not_notify_self(self):
+		url = reverse('posts:comment-list')
+		self.client.force_authenticate(user=self.post_owner)
+
+		response = self.client.post(url, {'post': self.post.id, 'content': 'Thanks me!'}, format='json')
+
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(Notification.objects.count(), 0)
 
 	def test_only_owner_can_delete_comment(self):
 		comment = Comment.objects.create(post=self.post, author=self.commenter, content='Nice!')
@@ -127,6 +143,72 @@ class CommentApiTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertEqual(response.data['count'], 1)
 		self.assertEqual(response.data['results'][0]['content'], 'First comment')
+
+
+class LikeApiTests(APITestCase):
+	def setUp(self):
+		self.post_owner = User.objects.create_user(
+			username='liker_owner',
+			email='liker_owner@example.com',
+			password='Secret123!'
+		)
+		self.other_user = User.objects.create_user(
+			username='fan',
+			email='fan@example.com',
+			password='Secret123!'
+		)
+		self.post = Post.objects.create(author=self.post_owner, title='A post', content='Body')
+
+	def _like_url(self, post_id: int) -> str:
+		return reverse('posts:post-like', args=[post_id])
+
+	def _unlike_url(self, post_id: int) -> str:
+		return reverse('posts:post-unlike', args=[post_id])
+
+	def test_authentication_required_for_like(self):
+		response = self.client.post(self._like_url(self.post.id))
+		self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+	def test_user_can_like_post_and_notification_created(self):
+		self.client.force_authenticate(user=self.other_user)
+		response = self.client.post(self._like_url(self.post.id))
+
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertTrue(Like.objects.filter(post=self.post, user=self.other_user).exists())
+		self.assertEqual(response.data['likes_count'], 1)
+		self.assertEqual(Notification.objects.count(), 1)
+		notification = Notification.objects.first()
+		self.assertEqual(notification.recipient, self.post_owner)
+		self.assertEqual(notification.actor, self.other_user)
+		self.assertEqual(notification.verb, 'liked your post')
+
+	def test_like_is_idempotent(self):
+		self.client.force_authenticate(user=self.other_user)
+		self.client.post(self._like_url(self.post.id))
+		response = self.client.post(self._like_url(self.post.id))
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(Like.objects.filter(post=self.post, user=self.other_user).count(), 1)
+		self.assertEqual(
+			Notification.objects.filter(recipient=self.post_owner, verb='liked your post').count(),
+			1,
+		)
+
+	def test_user_can_unlike_post(self):
+		self.client.force_authenticate(user=self.other_user)
+		self.client.post(self._like_url(self.post.id))
+
+		response = self.client.post(self._unlike_url(self.post.id))
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertFalse(Like.objects.filter(post=self.post, user=self.other_user).exists())
+		self.assertEqual(response.data['likes_count'], 0)
+
+	def test_unlike_without_like_returns_error(self):
+		self.client.force_authenticate(user=self.other_user)
+		response = self.client.post(self._unlike_url(self.post.id))
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class FeedApiTests(APITestCase):

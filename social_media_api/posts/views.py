@@ -1,11 +1,12 @@
 """ViewSets for posts and comments."""
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Prefetch
 from rest_framework import filters, generics, permissions, status, viewsets
-from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
+from notifications.models import Notification
 from notifications.services import create_notification
 
 from .models import Comment, Like, Post
@@ -57,48 +58,55 @@ class PostViewSet(viewsets.ModelViewSet):
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
 
-	@action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-	def like(self, request, pk=None):
-		post = self.get_object()
-		like, created = Like.objects.get_or_create(post=post, user=request.user)
+
+class PostLikeView(generics.GenericAPIView):
+	"""Allow authenticated users to like a post."""
+
+	permission_classes = [permissions.IsAuthenticated]
+	serializer_class = LikeSerializer
+
+	def post(self, request, pk: int):
+		post = generics.get_object_or_404(Post, pk=pk)
+		like, created = Like.objects.get_or_create(user=request.user, post=post)
 
 		if created:
-			create_notification(
-				recipient=post.author,
-				actor=request.user,
-				verb='liked your post',
-				target=post,
-				metadata={'post_id': post.pk, 'post_title': post.title},
-			)
+			if post.author != request.user:
+				Notification.objects.create(
+					recipient=post.author,
+					actor=request.user,
+					verb='liked your post',
+					content_type=ContentType.objects.get_for_model(post, for_concrete_model=False),
+					object_id=post.pk,
+					metadata={'post_id': post.pk, 'post_title': post.title},
+				)
 			status_code = status.HTTP_201_CREATED
-			message = 'Post liked.'
+			detail = 'Post liked.'
 		else:
 			status_code = status.HTTP_200_OK
-			message = 'Post already liked.'
+			detail = 'Post already liked.'
 
-		likes_total = Like.objects.filter(post=post).count()
+		likes_count = Like.objects.filter(post=post).count()
+		payload = {
+			'detail': detail,
+			'like': LikeSerializer(like, context={'request': request}).data,
+			'likes_count': likes_count,
+		}
+		return Response(payload, status=status_code)
 
-		return Response(
-			{
-				'detail': message,
-				'like': LikeSerializer(like, context={'request': request}).data,
-				'likes_count': likes_total,
-			},
-			status=status_code,
-		)
 
-	@action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-	def unlike(self, request, pk=None):
-		post = self.get_object()
-		deleted, _ = Like.objects.filter(post=post, user=request.user).delete()
+class PostUnlikeView(generics.GenericAPIView):
+	"""Allow authenticated users to remove their like from a post."""
+
+	permission_classes = [permissions.IsAuthenticated]
+
+	def post(self, request, pk: int):
+		post = generics.get_object_or_404(Post, pk=pk)
+		deleted, _ = Like.objects.filter(user=request.user, post=post).delete()
 
 		if deleted:
-			likes_total = Like.objects.filter(post=post).count()
+			likes_count = Like.objects.filter(post=post).count()
 			return Response(
-				{
-					'detail': 'Post unliked.',
-					'likes_count': likes_total,
-				},
+				{'detail': 'Post unliked.', 'likes_count': likes_count},
 				status=status.HTTP_200_OK,
 			)
 

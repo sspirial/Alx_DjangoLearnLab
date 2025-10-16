@@ -42,7 +42,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'changeme-in-dev-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool('DJANGO_DEBUG', default=True)
+DEBUG = False  # Production default required by deployment checklist
+if env_bool('DJANGO_DEBUG', default=False):
+    DEBUG = True
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 
@@ -104,6 +106,13 @@ WSGI_APPLICATION = 'social_media_api.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+DB_ENGINE = os.getenv('DB_ENGINE')
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+
 default_db_url = os.getenv('DATABASE_URL')
 
 if default_db_url:
@@ -155,8 +164,12 @@ if default_db_url:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'ENGINE': DB_ENGINE or 'django.db.backends.sqlite3',
+            'NAME': DB_NAME or BASE_DIR / 'db.sqlite3',
+            'USER': DB_USER or '',
+            'PASSWORD': DB_PASSWORD or '',
+            'HOST': DB_HOST or '',
+            'PORT': DB_PORT or '',
         }
     }
 
@@ -195,13 +208,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = os.getenv('DJANGO_STATIC_URL', '/static/')
-STATIC_ROOT = Path(os.getenv('DJANGO_STATIC_ROOT', str(BASE_DIR / 'staticfiles')))
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATIC_URL = os.getenv('DJANGO_STATIC_URL', STATIC_URL)
+STATIC_ROOT = Path(os.getenv('DJANGO_STATIC_ROOT', str(STATIC_ROOT)))
 
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
-MEDIA_URL = os.getenv('DJANGO_MEDIA_URL', '/media/')
-MEDIA_ROOT = Path(os.getenv('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media')))
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+MEDIA_URL = os.getenv('DJANGO_MEDIA_URL', MEDIA_URL)
+MEDIA_ROOT = Path(os.getenv('DJANGO_MEDIA_ROOT', str(MEDIA_ROOT)))
 
 USE_AWS_S3 = env_bool('DJANGO_USE_S3', default=not DEBUG)
 
@@ -254,12 +273,17 @@ REST_FRAMEWORK = {
 }
 
 # Security hardening
+SECURE_BROWSER_XSS_FILTER = True
 SECURE_CROSS_ORIGIN_OPENER_POLICY = os.getenv('DJANGO_SECURE_COOP', 'same-origin')
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = os.getenv('DJANGO_SECURE_REFERRER_POLICY', 'same-origin')
 X_FRAME_OPTIONS = os.getenv('DJANGO_X_FRAME_OPTIONS', 'DENY')
 
-SECURE_SSL_REDIRECT = (not DEBUG) and env_bool('DJANGO_SECURE_SSL_REDIRECT', default=True)
+SECURE_SSL_REDIRECT = True
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+else:
+    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', default=True)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 SESSION_COOKIE_SECURE = (not DEBUG) and env_bool('DJANGO_SESSION_COOKIE_SECURE', default=True)
